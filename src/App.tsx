@@ -131,7 +131,7 @@ export function App() {
             <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <h1 className="text-lg font-semibold">Cargar paquete de Dataverse</h1>
               <p className="text-sm text-slate-600">Genera el paquete con PAC CLI y cárgalo aquí. Tendrás las columnas y los formularios de la tabla.</p>
-              <pre className="flex items-start gap-2 overflow-x-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100"><Terminal size={14} className="mt-0.5 shrink-0" /><code>.\scripts\Export-FormBundle.ps1</code></pre>
+              <pre className="flex items-start gap-2 overflow-x-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100"><Terminal size={14} className="mt-0.5 shrink-0" /><code>node scripts/export-form-bundle.mjs</code></pre>
               <BundleButton primary onText={onBundleText} label="Cargar paquete (.bundle.json)" />
             </section>
             <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

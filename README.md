@@ -5,17 +5,17 @@ Editor visual de formularios de Dataverse (React + TypeScript + Tailwind). Se al
 ## Flujo
 
 ```
-pac auth create  →  scripts/Export-FormBundle.ps1  →  Cargar paquete  →  editar  →  Exportar XML  →  XML Editor (XRM Toolbox)
+pac auth create  →  node scripts/export-form-bundle.mjs  →  Cargar paquete  →  editar  →  Exportar XML  →  XML Editor (XRM Toolbox)
 ```
 
 1. Una vez: `pac auth create` (el mismo inicio de sesión interactivo de siempre).
-2. `.\scripts\Export-FormBundle.ps1` → menús para **entorno**, **solución** y **tabla**. Genera `bundles/<tabla>.<solución>.bundle.json`.
+2. `node scripts/export-form-bundle.mjs` (Node 18+, multiplataforma) → menús para **entorno**, **solución** y **tabla**; antes de exportar pide confirmar el entorno. Genera `bundles/<tabla>.<solución>.bundle.json`.
 3. En la herramienta: **Cargar paquete** → elige el formulario → diseña → **Exportar XML** → pégalo en el XML Editor y publica desde XRM Toolbox.
 
 También puedes pasar parámetros al script para saltarte los menús:
 
-```powershell
-.\scripts\Export-FormBundle.ps1 -Environment https://org.crm4.dynamics.com -Solution MiSolucion -Entity account -SkipPublish
+```bash
+node scripts/export-form-bundle.mjs --env https://org-dev.crm4.dynamics.com --solution MiSolucion --entity account --skip-publish --yes
 ```
 
 ## Arranque de la herramienta
@@ -62,7 +62,7 @@ El script se escribió sin poder ejecutar `pac` y se apoya en la salida real de 
 ## Estructura
 
 ```
-scripts/        Export-FormBundle.ps1 (pac: entorno → solución → tabla → paquete)
+scripts/        export-form-bundle.mjs (pac: entorno → solución → tabla → paquete)
 src/domain      modelo, classids, bundle y parse/serialize/validate de FormXml (puro, con tests)
 src/state       reducer con undo/redo, contexto, persistencia del paquete
 src/components  canvas, paleta, propiedades, incidencias, diálogos

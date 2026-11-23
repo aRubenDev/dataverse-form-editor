@@ -35,7 +35,7 @@ describe('App (smoke)', () => {
   it('muestra la pantalla de inicio sin formulario', () => {
     render();
     expect(host.textContent).toContain('Cargar paquete de Dataverse');
-    expect(host.textContent).toContain('Export-FormBundle.ps1');
+    expect(host.textContent).toContain('export-form-bundle.mjs');
   });
 
   it('crea un formulario nuevo y muestra el canvas', () => {
