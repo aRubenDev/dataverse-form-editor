@@ -2,7 +2,7 @@ import { typeForClassId } from './classIds';
 import type { AttributeMeta, EntityMeta } from './types';
 
 /**
- * Paquete que genera scripts/Export-FormBundle.ps1. El script solo vuelca ficheros en bruto;
+ * Paquete que genera scripts/export-form-bundle.mjs. El script solo vuelca ficheros en bruto;
  * todo el parseo vive aquí para poder probarlo.
  */
 export interface BundleFile {
