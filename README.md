@@ -1,59 +1,69 @@
 # Dataverse Form Designer
 
-Editor visual de formularios de Dataverse (React + TypeScript + Tailwind) con login OAuth (Authorization Code + PKCE, sin secretos) y exportación a **FormXml**, pensado para pegarlo en el *XML Editor* de XRM Toolbox.
+Editor visual de formularios de Dataverse (React + TypeScript + Tailwind). Se alimenta de un **paquete** generado con PAC CLI y exporta **FormXml** para pegarlo en el *XML Editor* de XRM Toolbox. Sin login en el navegador ni App Registration: la autenticación la hace `pac`.
 
-## Arranque
+## Flujo
+
+```
+pac auth create  →  scripts/Export-FormBundle.ps1  →  Cargar paquete  →  editar  →  Exportar XML  →  XML Editor (XRM Toolbox)
+```
+
+1. Una vez: `pac auth create` (el mismo inicio de sesión interactivo de siempre).
+2. `.\scripts\Export-FormBundle.ps1` → menús para **entorno**, **solución** y **tabla**. Genera `bundles/<tabla>.<solución>.bundle.json`.
+3. En la herramienta: **Cargar paquete** → elige el formulario → diseña → **Exportar XML** → pégalo en el XML Editor y publica desde XRM Toolbox.
+
+También puedes pasar parámetros al script para saltarte los menús:
+
+```powershell
+.\scripts\Export-FormBundle.ps1 -Environment https://org.crm4.dynamics.com -Solution MiSolucion -Entity account -SkipPublish
+```
+
+## Arranque de la herramienta
 
 ```bash
 npm install
-cp .env.example .env      # rellena VITE_AZURE_CLIENT_ID (o ponlo en la pantalla de login)
-npm run dev               # http://localhost:5173
-npm test                  # round-trip de FormXml + reducer
+npm run dev      # http://localhost:5173
+npm test
 npm run build
 ```
 
-## App Registration (una sola vez)
+## Qué hace el script (y qué no)
 
-XRM Toolbox usa un Client ID propio con redirect nativo; en un navegador **no se puede reutilizar**. Crea el tuyo:
-
-1. Entra ID → *App registrations* → *New registration* (cuentas de cualquier directorio organizativo).
-2. *Authentication* → *Add a platform* → **Single-page application**. Redirect URI: `http://localhost:5173/redirect.html` (añade también la de producción si lo despliegas).
-3. *API permissions* → *Dataverse* → *Delegated* → `user_impersonation`.
-4. Copia el *Application (client) ID* a `.env` (`VITE_AZURE_CLIENT_ID`, así nadie tiene que escribirlo) o a la sección "Aplicación de Azure" de la pantalla de login (se guarda en el navegador).
-
-El usuario necesita permiso de lectura sobre metadatos y `systemform` en el entorno (p. ej. rol *System Customizer*).
-
-## Flujo de trabajo
-
-1. **Conectar**: escribe solo la URL del entorno (o pega una connection string `AuthType=OAuth;Url=…;AppId=…;Username=…`) → login de Microsoft → elige entidad y formulario. El Client ID se pide una vez y queda guardado; los entornos usados se recuerdan.
-2. Edita: arrastra campos desde la paleta, reordena celdas/secciones, cambia columnas, etiquetas, solo lectura…
-3. **Exportar XML** → copia o descarga → pégalo en el XML Editor de XRM Toolbox → publica desde allí.
-
-También funciona **sin conexión**: formulario nuevo, importar FormXml (pegar/fichero) y añadir campos a mano.
+Usa `pac env list`, `pac solution list --json`, `pac solution publish` (con confirmación), `pac solution export` (no gestionada) y `pac solution unpack`. **No interpreta XML**: vuelca `Entity.xml`, los ficheros de `FormXml` y el idioma base tal cual. El parseo está en `src/domain/bundle.ts`, con tests.
 
 ## Qué se conserva al importar
 
-El editor solo modela pestañas, secciones y campos. Todo lo demás se guarda como XML y se reescribe tal cual:
-`events`, `formLibraries`, `header`, `footer`, `DisplayConditions`, subgrids, web resources, quick views, timeline, `parameters` de controles, atributos extra de tab/section/cell/control y **todas las etiquetas de todos los idiomas**.
+El editor modela pestañas, secciones y campos. Todo lo demás se conserva y se reescribe tal cual: `events`, `formLibraries`, `header`, `footer`, subgrids, web resources, quick views, `parameters` de controles, atributos extra y **las etiquetas de todos los idiomas**.
 
-## Decisiones y límites conocidos
+## Límites y decisiones
 
-- **rowspan**: no se modela; las celdas se exportan con `rowspan="1"` (se avisa al importar).
-- **Etiquetas**: se edita solo el idioma seleccionado en la cabecera (por defecto el idioma base de la organización).
-- **classid de controles**: tabla en `src/domain/classIds.ts`. Los tipos sin entrada propia usan el control de texto. Verifica con un formulario real si usas tipos poco comunes (multiselect, duration).
-- **Borrar un campo** referenciado en `events`/`header`/`footer` pide confirmación (esas referencias no se tocan).
-- **Validación**: nombres únicos y válidos, ids de control únicos, campos duplicados, obligatorios ausentes (necesita metadatos). Los errores bloquean la exportación.
-- **Sesión caducada**: el editor no se descarta; hay autoguardado de borrador en `localStorage` y banner para reautenticar.
-- **Connection strings**: se leen `Url`, `AppId`/`ClientId`, `TenantId`, `Username` (preselecciona cuenta) y `LoginPrompt=Always`. `RedirectUri` se ignora y se rechazan las cadenas con `ClientSecret`/contraseña/certificado (un secreto en un SPA queda expuesto).
-- **Nubes soberanas** (GCC High, China): la authority está fija en `login.microsoftonline.com`.
-- No publica ni guarda en el entorno: esa parte queda en el XML Editor de XRM Toolbox.
+- **Columnas**: salen de `Entity.xml` (solo las incluidas en la solución) **más** los campos que usan los formularios del paquete. Una columna estándar que no esté en la solución ni en ningún formulario no aparece en la paleta: usa "Añadir campo manual".
+- **Tipos no clasificables** (`virtual`, imagen, archivo…) se omiten y se avisa. Añádelos a mano si los necesitas.
+- **Es una foto**: si cambia el esquema, vuelve a ejecutar el script. El paquete queda guardado en el navegador para que la paleta sobreviva a recargas.
+- **Solo soluciones no gestionadas** (entorno de desarrollo).
+- **rowspan** no se modela: se exporta como 1 (se avisa al importar).
+- **Etiquetas**: se edita el idioma elegido en la cabecera (por defecto, el idioma base de la solución).
+- **Borrar un campo** referenciado en `events`/`header`/`footer` pide confirmación; esas referencias no se tocan.
+- **Validación**: nombres únicos y válidos, ids de control únicos, campos duplicados, obligatorios ausentes. Los errores bloquean la exportación.
+- **Borrador**: autoguardado en `localStorage`; se puede restaurar desde la pantalla de inicio.
+- La herramienta no publica ni guarda en el entorno: eso queda en el XML Editor.
+
+## Primera ejecución: qué comprobar
+
+El script se escribió sin poder ejecutar `pac` y se apoya en la salida real de la CLI. Si algo no cuadra:
+
+| Síntoma | Causa probable |
+|---|---|
+| No lista entornos / soluciones | Cambió el formato de salida de `pac`; el script pide el dato a mano como alternativa. |
+| "La solución no contiene tablas" | La solución no incluye tablas, o el unpack usó otro formato de carpetas (`Entities/`). |
+| Sin columnas en la paleta | `Entity.xml` solo trae las columnas incluidas en la solución; revisa los avisos del paquete. |
+| Error al desempaquetar | Prueba a añadir `--allowWrite` a `pac solution unpack` en el script. |
 
 ## Estructura
 
 ```
-src/domain      modelo, classids, parse/serialize/validate de FormXml (puro, con tests)
-src/state       reducer con undo/redo, contexto, hook de metadatos
-src/auth        MSAL v5 (popup + redirect.html puente)
-src/api         cliente mínimo de la Web API de Dataverse
+scripts/        Export-FormBundle.ps1 (pac: entorno → solución → tabla → paquete)
+src/domain      modelo, classids, bundle y parse/serialize/validate de FormXml (puro, con tests)
+src/state       reducer con undo/redo, contexto, persistencia del paquete
 src/components  canvas, paleta, propiedades, incidencias, diálogos
 ```

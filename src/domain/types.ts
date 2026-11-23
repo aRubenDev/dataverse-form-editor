@@ -89,12 +89,6 @@ export interface EntityMeta {
   displayName: string;
 }
 
-export interface FormSummary {
-  formId: string;
-  name: string;
-  type: number;
-}
-
 export type Selection =
   | { kind: 'tab'; id: string }
   | { kind: 'section'; id: string }

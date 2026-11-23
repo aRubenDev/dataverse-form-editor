@@ -1,39 +1,48 @@
 import { useMemo, useState } from 'react';
-import { FilePlus2, FileUp, X } from 'lucide-react';
-import { useAuth } from './auth/AuthContext';
+import { FilePlus2, FileUp, Terminal, X } from 'lucide-react';
 import { Canvas } from './components/Canvas';
 import { FieldPalette } from './components/FieldPalette';
 import { Header } from './components/Header';
 import { IssuesPanel } from './components/IssuesPanel';
-import { LoginPanel } from './components/LoginPanel';
+import { BundleButton } from './components/BundleButton';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { XmlDialog } from './components/XmlDialog';
 import { parseFormXml } from './domain/formxml/parse';
 import { serializeFormXml } from './domain/formxml/serialize';
 import { validateForm } from './domain/formxml/validate';
 import { clearDraft, readDraft, useEditor } from './state/EditorContext';
-import { useMetadata } from './state/useMetadata';
+import { readBundleRaw, saveBundleRaw } from './state/bundleStorage';
+import { parseBundle, type Bundle } from './domain/bundle';
 
-type Dialog = 'import' | 'export' | 'login' | null;
+type Dialog = 'import' | 'export' | null;
+
+function restoreBundle(): Bundle | null {
+  const raw = readBundleRaw();
+  if (!raw) return null;
+  try {
+    return parseBundle(raw);
+  } catch {
+    return null;
+  }
+}
 
 export function App() {
-  const auth = useAuth();
   const { state, dispatch } = useEditor();
-  const meta = useMetadata();
+  const [bundle, setBundle] = useState<Bundle | null>(restoreBundle);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState(readDraft);
 
   const issues = useMemo(
-    () => (state.present ? validateForm(state.present, state.lcid, meta.attributes) : []),
-    [state.present, state.lcid, meta.attributes],
+    () => (state.present ? validateForm(state.present, state.lcid, bundle?.attributes ?? []) : []),
+    [state.present, state.lcid, bundle],
   );
   const errorCount = issues.filter((i) => i.level === 'error').length;
 
   const confirmDiscard = () => !state.dirty || window.confirm('Hay cambios sin exportar. ¿Descartarlos?');
 
   const onNew = () => {
-    if (confirmDiscard()) dispatch({ type: 'newForm', entity: meta.entity });
+    if (confirmDiscard()) dispatch({ type: 'newForm', entity: bundle?.entity.logicalName ?? '' });
   };
 
   const onExport = () => {
@@ -49,10 +58,40 @@ export function App() {
     if (!confirmDiscard()) return null;
     try {
       const form = parseFormXml(xml);
-      dispatch({ type: 'load', form, source: meta.entity ? { entity: meta.entity } : null });
+      dispatch({ type: 'load', form, source: bundle ? { entity: bundle.entity.logicalName } : null });
       return null;
     } catch (e) {
       return e instanceof Error ? e.message : String(e);
+    }
+  };
+
+  const loadForm = (b: Bundle, formId: string) => {
+    const f = b.forms.find((x) => x.formId === formId);
+    if (!f) return;
+    try {
+      dispatch({ type: 'load', form: parseFormXml(f.formXml), source: { entity: b.entity.logicalName, formId: f.formId, name: f.name }, lcid: b.baseLanguage });
+    } catch (e) {
+      setNotice(`No se pudo abrir el formulario "${f.name}": ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  const onPickForm = (formId: string) => {
+    if (bundle && confirmDiscard()) loadForm(bundle, formId);
+  };
+
+  /** Cargar un paquete nunca descarta el formulario abierto: solo cambia la paleta y la lista de formularios. */
+  const onBundleText = (raw: string, fileName: string) => {
+    try {
+      const b = parseBundle(raw);
+      setBundle(b);
+      saveBundleRaw(raw);
+      setNotice(null);
+      if (!state.present) {
+        if (b.forms.length === 1) loadForm(b, b.forms[0].formId);
+        else dispatch({ type: 'setLcid', lcid: b.baseLanguage });
+      }
+    } catch (e) {
+      setNotice(`No se pudo cargar ${fileName}: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -60,26 +99,26 @@ export function App() {
 
   return (
     <div className="flex h-full flex-col">
-      <Header meta={meta} errorCount={errorCount} onNew={onNew} onImport={() => setDialog('import')} onExport={onExport} onLogin={() => setDialog('login')} />
+      <Header bundle={bundle} errorCount={errorCount} onBundleText={onBundleText} onPickForm={onPickForm} onNew={onNew} onImport={() => setDialog('import')} onExport={onExport} />
 
-      {auth.needsReauth && (
-        <div className="flex items-center gap-3 bg-amber-100 px-4 py-2 text-sm text-amber-900">
-          La sesión de Microsoft caducó. Tus cambios siguen aquí y hay un borrador local.
-          <button className="btn" onClick={() => auth.signIn(auth.config)}>Volver a iniciar sesión</button>
+      {notice && (
+        <div className="flex items-center gap-3 bg-red-50 px-4 py-2 text-sm text-red-700">
+          <span className="flex-1">{notice}</span>
+          <button className="btn btn-ghost px-1" onClick={() => setNotice(null)} aria-label="Cerrar"><X size={14} /></button>
         </div>
       )}
-      {(meta.error || notice) && (
-        <div className="flex items-center gap-3 bg-red-50 px-4 py-2 text-sm text-red-700">
-          <span className="flex-1">{meta.error ?? notice}</span>
-          {notice && <button className="btn btn-ghost px-1" onClick={() => setNotice(null)} aria-label="Cerrar"><X size={14} /></button>}
-        </div>
+      {bundle && bundle.warnings.length > 0 && (
+        <details className="bg-amber-50 px-4 py-1.5 text-xs text-amber-900">
+          <summary className="cursor-pointer">Avisos del paquete ({bundle.warnings.length})</summary>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">{bundle.warnings.map((w) => <li key={w}>{w}</li>)}</ul>
+        </details>
       )}
 
       {state.present ? (
         <>
           <div className="flex min-h-0 flex-1">
             <aside className="w-72 shrink-0 border-r border-slate-300 bg-slate-50">
-              <FieldPalette attributes={meta.attributes} entity={meta.entity} loading={meta.busy} />
+              <FieldPalette attributes={bundle?.attributes ?? []} entity={bundle?.entity.logicalName ?? ''} loading={false} />
             </aside>
             <main className="min-w-0 flex-1"><Canvas /></main>
             <aside className="w-80 shrink-0 overflow-y-auto border-l border-slate-300 bg-slate-50"><PropertiesPanel /></aside>
@@ -89,14 +128,11 @@ export function App() {
       ) : (
         <div className="flex flex-1 items-center justify-center overflow-auto p-6">
           <div className="grid w-full max-w-4xl gap-6 md:grid-cols-2">
-            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h1 className="text-lg font-semibold">Conectar con Dataverse</h1>
-              <p className="mb-4 mt-1 text-sm text-slate-600">
-                {auth.status === 'signed-in'
-                  ? `Conectado como ${auth.account?.username}. Elige entidad y formulario en la barra superior.`
-                  : 'Inicia sesión con tu cuenta de Microsoft para cargar entidades, campos y formularios.'}
-              </p>
-              {auth.status !== 'signed-in' && <LoginPanel />}
+            <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h1 className="text-lg font-semibold">Cargar paquete de Dataverse</h1>
+              <p className="text-sm text-slate-600">Genera el paquete con PAC CLI y cárgalo aquí. Tendrás las columnas y los formularios de la tabla.</p>
+              <pre className="flex items-start gap-2 overflow-x-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100"><Terminal size={14} className="mt-0.5 shrink-0" /><code>.\scripts\Export-FormBundle.ps1</code></pre>
+              <BundleButton primary onText={onBundleText} label="Cargar paquete (.bundle.json)" />
             </section>
             <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-semibold">Empezar</h2>
@@ -112,24 +148,13 @@ export function App() {
                 </div>
               )}
               <p className="pt-2 text-xs text-slate-500">
-                Flujo: conecta → elige formulario → edita → <b>Exportar XML</b> → pégalo en el XML Editor de XRM Toolbox.
+                Flujo: script con pac → cargar paquete → elegir formulario → editar → <b>Exportar XML</b> → pegarlo en el XML Editor de XRM Toolbox.
               </p>
             </section>
           </div>
         </div>
       )}
 
-      {dialog === 'login' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-6">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold">Conectar con Dataverse</h2>
-              <button className="btn btn-ghost px-1" onClick={() => setDialog(null)} aria-label="Cerrar"><X size={16} /></button>
-            </div>
-            <LoginPanel onDone={() => setDialog(null)} />
-          </div>
-        </div>
-      )}
       {dialog === 'import' && <XmlDialog mode="import" onImport={importXml} onClose={() => setDialog(null)} />}
       {dialog === 'export' && state.present && (
         <XmlDialog
