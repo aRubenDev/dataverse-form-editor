@@ -19,6 +19,8 @@ export interface EditorState {
   selection: Selection;
   lcid: number;
   dirty: boolean;
+  /** Solo vista del editor: false quita del lienzo lo oculto. No afecta al XML exportado. */
+  showHidden: boolean;
   source: FormSource | null;
   lastKey: string | null;
   lastAt: number;
@@ -31,6 +33,7 @@ export const initialState: EditorState = {
   selection: null,
   lcid: 1033,
   dirty: false,
+  showHidden: true,
   source: null,
   lastKey: null,
   lastAt: 0,
@@ -40,6 +43,7 @@ export type Action =
   | { type: 'load'; form: FormModel; source: FormSource | null; lcid?: number }
   | { type: 'newForm'; entity: string }
   | { type: 'setLcid'; lcid: number }
+  | { type: 'setShowHidden'; value: boolean }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'select'; selection: Selection }
@@ -51,13 +55,13 @@ export type Action =
   | { type: 'setTabColumns'; id: string; widths: string[] }
   | { type: 'addSection'; tabId: string; colIndex: number }
   | { type: 'removeSection'; id: string }
-  | { type: 'patchSection'; id: string; patch: Partial<Pick<Section, 'name' | 'showlabel' | 'showbar' | 'columns'>> }
+  | { type: 'patchSection'; id: string; patch: Partial<Pick<Section, 'name' | 'showlabel' | 'showbar' | 'visible' | 'columns'>> }
   | { type: 'moveSection'; id: string; toColumnId: string; beforeId: string | null }
   | { type: 'shiftSection'; id: string; dir: -1 | 1 }
   | { type: 'addField'; attr: AttributeMeta; sectionId: string; beforeCellId: string | null }
   | { type: 'addCustomField'; logicalName: string; typeKey: string; sectionId: string }
   | { type: 'addSpacer'; sectionId: string; beforeCellId: string | null }
-  | { type: 'patchCell'; id: string; patch: Partial<Pick<Cell, 'colspan' | 'showlabel'>> }
+  | { type: 'patchCell'; id: string; patch: Partial<Pick<Cell, 'colspan' | 'showlabel' | 'visible'>> }
   | { type: 'patchField'; id: string; patch: { disabled?: boolean; controlId?: string } }
   | { type: 'moveCell'; id: string; toSectionId: string; beforeId: string | null }
   | { type: 'removeCell'; id: string }
@@ -102,6 +106,7 @@ function makeFieldCell(form: FormModel, lcid: number, a: { logicalName: string; 
     colspan: a.type === 'memo' ? section.columns : 1,
     rowspan: 1,
     showlabel: true,
+    visible: true,
     labels: { [String(lcid)]: a.displayName },
     field: {
       controlId: uniqueName(a.logicalName, ids),
@@ -140,11 +145,13 @@ function exists(form: FormModel, sel: Exclude<Selection, null>): boolean {
 export function reducer(state: EditorState, action: Action): EditorState {
   switch (action.type) {
     case 'load':
-      return { ...initialState, present: action.form, source: action.source, lcid: action.lcid ?? state.lcid };
+      return { ...initialState, showHidden: state.showHidden, present: action.form, source: action.source, lcid: action.lcid ?? state.lcid };
     case 'newForm':
-      return { ...initialState, present: createEmptyForm(state.lcid), source: { entity: action.entity }, lcid: state.lcid, dirty: true };
+      return { ...initialState, showHidden: state.showHidden, present: createEmptyForm(state.lcid), source: { entity: action.entity }, lcid: state.lcid, dirty: true };
     case 'setLcid':
       return { ...state, lcid: action.lcid };
+    case 'setShowHidden':
+      return { ...state, showHidden: action.value };
     case 'select':
       return { ...state, selection: action.selection };
     case 'markExported':
@@ -171,7 +178,7 @@ export function reducer(state: EditorState, action: Action): EditorState {
           labels: { [l]: 'Nueva pestaña' }, attrs: { verticallayout: 'true', IsUserDefined: '1' }, extraXml: [],
           columns: [{
             id: newGuid(), width: '100%',
-            sections: [{ id: newGuid(), name: sectionName, showlabel: true, showbar: false, columns: 2, labels: { [l]: 'Nueva sección' }, cells: [], attrs: { IsUserDefined: '1' }, extraXml: [] }],
+            sections: [{ id: newGuid(), name: sectionName, showlabel: true, showbar: false, visible: true, columns: 2, labels: { [l]: 'Nueva sección' }, cells: [], attrs: { IsUserDefined: '1' }, extraXml: [] }],
           }],
         };
         f.tabs.push(tab);
@@ -212,7 +219,7 @@ export function reducer(state: EditorState, action: Action): EditorState {
         const col = tab?.columns[Math.min(action.colIndex, (tab?.columns.length ?? 1) - 1)];
         if (!col) return;
         const name = uniqueName('section', new Set([...eachSection(f)].map((x) => x.sec.name)));
-        const sec: Section = { id: newGuid(), name, showlabel: true, showbar: false, columns: 1, labels: { [String(state.lcid)]: 'Nueva sección' }, cells: [], attrs: { IsUserDefined: '1' }, extraXml: [] };
+        const sec: Section = { id: newGuid(), name, showlabel: true, showbar: false, visible: true, columns: 1, labels: { [String(state.lcid)]: 'Nueva sección' }, cells: [], attrs: { IsUserDefined: '1' }, extraXml: [] };
         col.sections.push(sec);
         return { kind: 'section', id: sec.id };
       });
@@ -266,7 +273,7 @@ export function reducer(state: EditorState, action: Action): EditorState {
       return mutate(state, null, (f) => {
         const sec = findSection(f, action.sectionId)?.sec;
         if (!sec) return;
-        const cell: Cell = { id: newGuid(), kind: 'empty', colspan: 1, rowspan: 1, showlabel: false, labels: {}, cellAttrs: {}, controlAttrs: {} };
+        const cell: Cell = { id: newGuid(), kind: 'empty', colspan: 1, rowspan: 1, showlabel: false, visible: true, labels: {}, cellAttrs: {}, controlAttrs: {} };
         insertAt(sec.cells, cell, action.beforeCellId);
         return { kind: 'cell', id: cell.id };
       });

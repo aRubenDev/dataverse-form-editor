@@ -44,6 +44,9 @@ export function validateForm(model: FormModel, lcid: number, attributes: Attribu
           if (cell.kind === 'field' && cell.field) {
             if (!cell.field.dataField)
               issues.push({ level: 'error', message: `Hay un campo sin nombre lógico en "${sec.name}".`, target: csel });
+            const meta = attributes.find((a) => a.logicalName === cell.field!.dataField);
+            if (!cell.visible && meta && (meta.required === 'SystemRequired' || meta.required === 'ApplicationRequired'))
+              issues.push({ level: 'warning', message: `El campo obligatorio ${meta.displayName || meta.logicalName} está oculto: si no tiene valor por defecto, no se podrá guardar.`, target: csel });
             fieldUsage.set(cell.field.dataField, (fieldUsage.get(cell.field.dataField) ?? 0) + 1);
             controlIds.set(cell.field.controlId, (controlIds.get(cell.field.controlId) ?? 0) + 1);
           }

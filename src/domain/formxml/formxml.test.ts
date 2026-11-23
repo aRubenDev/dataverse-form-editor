@@ -83,7 +83,7 @@ describe('FormXml round-trip', () => {
 });
 
 describe('chunkRows', () => {
-  const mk = (colspan: number) => ({ id: String(Math.random()), kind: 'empty' as const, colspan, rowspan: 1, showlabel: true, labels: {}, cellAttrs: {}, controlAttrs: {} });
+  const mk = (colspan: number) => ({ id: String(Math.random()), kind: 'empty' as const, colspan, rowspan: 1, showlabel: true, visible: true, labels: {}, cellAttrs: {}, controlAttrs: {} });
   it('respeta colspan y columnas', () => {
     const rows = chunkRows([mk(1), mk(1), mk(2), mk(1)], 2);
     expect(rows.map((r) => r.length)).toEqual([2, 1, 1]);
@@ -102,5 +102,37 @@ describe('validateForm', () => {
     f.tabs[0].name = '1bad name';
     const errs = validateForm(f, 1033).filter((i) => i.level === 'error').map((i) => i.message);
     expect(errs.some((m) => m.includes('inválido'))).toBe(true);
+  });
+});
+
+describe('visibilidad (ocultar)', () => {
+  const XML = `<form><tabs><tab name="t" id="{T}" expanded="true" showlabel="true"><labels><label description="T" languagecode="1033" /></labels>
+<columns><column width="100%"><sections>
+<section name="s1" showlabel="true" showbar="false" columns="2" id="{S1}" visible="false"><labels><label description="S1" languagecode="1033" /></labels><rows>
+<row><cell id="{C1}" showlabel="true" visible="false"><labels><label description="A" languagecode="1033" /></labels><control id="a" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="a" /></cell>
+<cell id="{C2}" showlabel="true" visible="false" colspan="1"><labels><label description="Grid" languagecode="1033" /></labels><control id="g" classid="{E7A81278-8635-4d9e-8D4D-59480B391C5B}" /></cell></row>
+</rows></section></sections></column></columns></tab></tabs></form>`;
+
+  it('lee visible en seccion y celdas (campo y opaca) y lo reescribe', () => {
+    const m = parseFormXml(XML);
+    const sec = m.tabs[0].columns[0].sections[0];
+    expect(sec.visible).toBe(false);
+    expect(sec.cells.map((c) => [c.kind, c.visible])).toEqual([['field', false], ['opaque', false]]);
+    const out = serializeFormXml(m);
+    expect(out.match(/visible="false"/g)).toHaveLength(3);
+    const again = parseFormXml(out).tabs[0].columns[0].sections[0];
+    expect(again.visible).toBe(false);
+    expect(again.cells.map((c) => c.visible)).toEqual([false, false]);
+  });
+
+  it('visible=true no deja atributo y se puede volver a ocultar/mostrar una celda opaca', () => {
+    const m = parseFormXml(XML);
+    const sec = m.tabs[0].columns[0].sections[0];
+    sec.visible = true;
+    sec.cells[0].visible = true;
+    sec.cells[1].visible = true;
+    expect(serializeFormXml(m)).not.toContain('visible=');
+    sec.cells[1].visible = false;
+    expect(serializeFormXml(m).match(/visible="false"/g)).toHaveLength(1);
   });
 });

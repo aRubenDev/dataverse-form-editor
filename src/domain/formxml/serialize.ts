@@ -27,15 +27,25 @@ function labelsXml(labels: Labels, depth: number): string {
   return `${pad(depth)}<labels>\n${inner}\n${pad(depth)}</labels>`;
 }
 
+/** Ajusta solo el atributo visible de la etiqueta <cell> de una celda opaca; el resto queda intacto. */
+function rawWithVisible(raw: string, visible: boolean): string {
+  return raw.replace(/^<cell\b[^>]*>/, (tag) => {
+    const clean = tag.replace(/\s+visible="[^"]*"/, '');
+    if (visible) return clean;
+    return clean.replace(/^<cell\b/, '<cell visible="false"');
+  });
+}
+
 function cellXml(cell: Cell, sectionColumns: number, depth: number): string {
   if (cell.kind === 'opaque' && cell.raw) {
-    // Preservado byte a byte, salvo el colspan, que sí puede haber cambiado
-    return `${pad(depth)}${cell.raw}`;
+    // Preservado byte a byte; solo se toca la visibilidad
+    return `${pad(depth)}${rawWithVisible(cell.raw, cell.visible)}`;
   }
   const colspan = Math.min(Math.max(cell.colspan, 1), sectionColumns);
   const head = attrString({
     id: cell.id,
     showlabel: String(cell.showlabel),
+    visible: cell.visible ? undefined : 'false',
     ...cell.cellAttrs,
     colspan: String(colspan),
     rowspan: '1',
@@ -89,6 +99,7 @@ function sectionXml(s: Section, depth: number): string {
     name: s.name,
     showlabel: String(s.showlabel),
     showbar: String(s.showbar),
+    visible: s.visible ? undefined : 'false',
     columns: String(s.columns),
     id: s.id,
     ...s.attrs,
@@ -177,6 +188,7 @@ export function createEmptyForm(lcid: number): FormModel {
                 name: 'general_section',
                 showlabel: true,
                 showbar: false,
+                visible: true,
                 columns: 2,
                 labels: { [l]: 'General' },
                 cells: [],

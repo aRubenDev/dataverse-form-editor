@@ -86,3 +86,15 @@ describe('reducer', () => {
     expect(doc.getElementsByTagName('cell')).toHaveLength(2);
   });
 });
+
+describe('showHidden', () => {
+  it('se conserva al cargar o crear un formulario y no ensucia el formulario', () => {
+    let s = reducer(initialState, { type: 'newForm', entity: 'account' });
+    s = reducer({ ...s, dirty: false }, { type: 'setShowHidden', value: false });
+    expect(s.showHidden).toBe(false);
+    expect(s.dirty).toBe(false);
+    expect(s.past).toHaveLength(0);
+    s = reducer(s, { type: 'newForm', entity: 'account' });
+    expect(s.showHidden).toBe(false);
+  });
+});

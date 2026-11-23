@@ -47,8 +47,9 @@ function parseCell(cellEl: Element, warnings: string[]): Cell {
     colspan: int(cellEl.getAttribute('colspan'), 1),
     rowspan,
     showlabel: bool(cellEl.getAttribute('showlabel'), true),
+    visible: bool(cellEl.getAttribute('visible'), true),
     labels: parseLabels(cellEl),
-    cellAttrs: attrsOf(cellEl, ['id', 'showlabel', 'colspan', 'rowspan']),
+    cellAttrs: attrsOf(cellEl, ['id', 'showlabel', 'visible', 'colspan', 'rowspan']),
   };
   if (rowspan > 1) {
     warnings.push(
@@ -105,10 +106,11 @@ function parseSection(el: Element, warnings: string[]): Section {
     name: el.getAttribute('name') ?? '',
     showlabel: bool(el.getAttribute('showlabel'), true),
     showbar: bool(el.getAttribute('showbar'), false),
+    visible: bool(el.getAttribute('visible'), true),
     columns: Math.min(4, int(el.getAttribute('columns'), 1)),
     labels: parseLabels(el),
     cells,
-    attrs: attrsOf(el, ['id', 'name', 'showlabel', 'showbar', 'columns']),
+    attrs: attrsOf(el, ['id', 'name', 'showlabel', 'showbar', 'visible', 'columns']),
     extraXml: children(el)
       .filter((c) => c.nodeName !== 'labels' && c.nodeName !== 'rows')
       .map(toXml),

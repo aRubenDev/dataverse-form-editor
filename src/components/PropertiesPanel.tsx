@@ -117,6 +117,8 @@ export function PropertiesPanel() {
   if (sel.kind === 'section') {
     const sec = findSectionById(form, sel.id);
     if (!sec) return null;
+    const tabOfSection = form.tabs.find((t) => t.columns.some((c) => c.sections.some((s) => s.id === sec.id)));
+    const colOfSection = tabOfSection?.columns.find((c) => c.sections.some((s) => s.id === sec.id));
     return (
       <div className="space-y-3 p-4">
         <h3 className="text-sm font-semibold">Sección</h3>
@@ -131,6 +133,16 @@ export function PropertiesPanel() {
             {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
+        {tabOfSection && tabOfSection.columns.length > 1 && (
+          <div>
+            <label className="label">Columna de la pestaña</label>
+            <select className="input" value={colOfSection?.id} onChange={(e) => dispatch({ type: 'moveSection', id: sec.id, toColumnId: e.target.value, beforeId: null })}>
+              {tabOfSection.columns.map((c, i) => <option key={c.id} value={c.id}>Columna {i + 1} ({c.width})</option>)}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">Una sección no puede abarcar varias columnas de la pestaña (límite de FormXml). Cambia el diseño de columnas en la pestaña.</p>
+          </div>
+        )}
+        <Check label="Visible" checked={sec.visible} onChange={(v) => dispatch({ type: 'patchSection', id: sec.id, patch: { visible: v } })} />
         <Check label="Mostrar etiqueta" checked={sec.showlabel} onChange={(v) => dispatch({ type: 'patchSection', id: sec.id, patch: { showlabel: v } })} />
         <Check label="Mostrar barra separadora" checked={sec.showbar} onChange={(v) => dispatch({ type: 'patchSection', id: sec.id, patch: { showbar: v } })} />
         {sec.extraXml.length > 0 && <p className="text-xs text-slate-500">Contiene {sec.extraXml.length} nodo(s) adicional(es) conservado(s).</p>}
@@ -165,9 +177,13 @@ export function PropertiesPanel() {
             <label className="label">Id del control</label>
             <input className="input font-mono" value={cell.field.controlId} onChange={(e) => dispatch({ type: 'patchField', id: cell.id, patch: { controlId: e.target.value } })} />
           </div>
+          <Check label="Visible" checked={cell.visible} onChange={(v) => dispatch({ type: 'patchCell', id: cell.id, patch: { visible: v } })} />
           <Check label="Mostrar etiqueta" checked={cell.showlabel} onChange={(v) => dispatch({ type: 'patchCell', id: cell.id, patch: { showlabel: v } })} />
           <Check label="Deshabilitado (solo lectura)" checked={cell.field.disabled} onChange={(v) => dispatch({ type: 'patchField', id: cell.id, patch: { disabled: v } })} />
         </>
+      )}
+      {cell.kind === 'opaque' && (
+        <Check label="Visible" checked={cell.visible} onChange={(v) => dispatch({ type: 'patchCell', id: cell.id, patch: { visible: v } })} />
       )}
       {cell.kind === 'opaque' && (
         <p className="text-sm text-slate-600">

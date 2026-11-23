@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Blocks, GripVertical, Minus } from 'lucide-react';
+import { Blocks, EyeOff, GripVertical, Minus } from 'lucide-react';
 import { OPAQUE_CLASS_NAMES, TYPE_LABELS, typeForClassId } from '../domain/classIds';
 import type { Cell, Section } from '../domain/types';
 import { useEditor } from '../state/EditorContext';
@@ -29,6 +29,8 @@ export function CellView({ cell, section }: { cell: Cell; section: Section }) {
     endDrag();
   };
 
+  if (!cell.visible && !state.showHidden && !selected) return null;
+
   const typeKey = cell.field ? typeForClassId(cell.field.classId) : undefined;
 
   return (
@@ -54,9 +56,11 @@ export function CellView({ cell, section }: { cell: Cell; section: Section }) {
         selected ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-500/30' : 'border-slate-200 bg-white hover:border-slate-400',
         over ? 'border-l-4 border-l-brand-500' : '',
         cell.kind === 'empty' ? 'border-dashed bg-slate-50 text-slate-400' : '',
+        cell.visible ? '' : 'opacity-50',
       ].join(' ')}
     >
       <GripVertical size={14} className="shrink-0 text-slate-300 group-hover:text-slate-500" />
+      {!cell.visible && <EyeOff size={14} className="shrink-0 text-slate-500" aria-label="Oculto" />}
       {cell.kind === 'field' && cell.field && (
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium">{label || cell.field.dataField}</div>

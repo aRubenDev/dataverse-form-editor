@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, GripVertical, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, EyeOff, GripVertical, Trash2 } from 'lucide-react';
 import type { Section } from '../domain/types';
 import { useEditor } from '../state/EditorContext';
 import { CellView } from './CellView';
@@ -32,6 +32,8 @@ export function SectionView({ section, columnId }: { section: Section; columnId:
     endDrag();
   };
 
+  if (!section.visible && !state.showHidden && !selected) return null;
+
   return (
     <section
       onClick={(e) => {
@@ -42,6 +44,7 @@ export function SectionView({ section, columnId }: { section: Section; columnId:
         'rounded-lg border bg-white shadow-sm',
         selected ? 'border-brand-500 ring-2 ring-brand-500/30' : 'border-slate-200',
         over === 'section' ? 'border-t-4 border-t-brand-500' : '',
+        section.visible ? '' : 'opacity-60',
       ].join(' ')}
     >
       <header
@@ -59,6 +62,7 @@ export function SectionView({ section, columnId }: { section: Section; columnId:
         className="flex cursor-grab items-center gap-2 border-b border-slate-100 px-3 py-2"
       >
         <GripVertical size={14} className="text-slate-300" />
+        {!section.visible && <EyeOff size={14} className="text-slate-500" aria-label="Oculta" />}
         <div className="min-w-0 flex-1">
           <span className="truncate text-sm font-semibold">{label || section.name}</span>
           <span className="ml-2 text-xs text-slate-400">{section.name} · {section.columns} col</span>

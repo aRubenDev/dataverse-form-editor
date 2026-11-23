@@ -28,13 +28,14 @@ export function Canvas() {
     if (t) setActiveId(t);
   }, [state.selection, form]);
 
-  const tab = form.tabs.find((t) => t.id === activeId) ?? form.tabs[0];
+  const shown = form.tabs.filter((t) => t.visible || state.showHidden || (state.selection?.kind === 'tab' && state.selection.id === t.id));
+  const tab = shown.find((t) => t.id === activeId) ?? shown[0];
   const lcid = String(state.lcid);
 
   return (
     <div className="flex h-full flex-col" onClick={() => dispatch({ type: 'select', selection: null })}>
       <div className="flex items-end gap-1 overflow-x-auto border-b border-slate-300 bg-slate-200/60 px-3 pt-2">
-        {form.tabs.map((t) => {
+        {shown.map((t) => {
           const active = t.id === tab?.id;
           const sel = state.selection?.kind === 'tab' && state.selection.id === t.id;
           return (
@@ -93,7 +94,7 @@ export function Canvas() {
           </div>
         ) : (
           <div className="py-16 text-center text-sm text-slate-500">
-            El formulario no tiene pestañas.{' '}
+            {form.tabs.length ? 'Todas las pestañas están ocultas.' : 'El formulario no tiene pestañas.'}{' '}
             <button className="text-brand-600 underline" onClick={() => dispatch({ type: 'addTab' })}>Añadir una</button>
           </div>
         )}

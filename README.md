@@ -41,6 +41,8 @@ El editor modela pestañas, secciones y campos. Todo lo demás se conserva y se 
 - **Tipos no clasificables** (`virtual`, imagen, archivo…) se omiten y se avisa. Añádelos a mano si los necesitas.
 - **Es una foto**: si cambia el esquema, vuelve a ejecutar el script. El paquete queda guardado en el navegador para que la paleta sobreviva a recargas.
 - **Solo soluciones no gestionadas** (entorno de desarrollo).
+- **Ocultar**: pestañas, secciones y campos tienen "Visible" (se exporta `visible="false"`). El botón **Ocultos** de la cabecera quita del lienzo lo oculto para ver el diseño real (solo vista, el XML no cambia). Un campo obligatorio oculto genera un aviso.
+- **Columnas**: la pestaña elige su diseño (1, 2 o 3 columnas); la sección elige cuántas columnas internas tiene (1-4) y en qué columna de la pestaña va. FormXml no permite que una sección abarque varias columnas de la pestaña; los campos sí pueden ocupar varias columnas de su sección.
 - **rowspan** no se modela: se exporta como 1 (se avisa al importar).
 - **Etiquetas**: se edita el idioma elegido en la cabecera (por defecto, el idioma base de la solución).
 - **Borrar un campo** referenciado en `events`/`header`/`footer` pide confirmación; esas referencias no se tocan.

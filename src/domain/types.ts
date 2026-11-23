@@ -16,6 +16,8 @@ export interface Cell {
   colspan: number;
   rowspan: number;
   showlabel: boolean;
+  /** false = <cell visible="false">: oculta en tiempo de ejecucion, sigue en el formulario */
+  visible: boolean;
   labels: Labels;
   /** Solo kind === 'field' */
   field?: FieldControl;
@@ -35,6 +37,7 @@ export interface Section {
   name: string;
   showlabel: boolean;
   showbar: boolean;
+  visible: boolean;
   /** Columnas internas de la sección (1-4) */
   columns: number;
   labels: Labels;

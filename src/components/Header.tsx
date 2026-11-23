@@ -1,4 +1,4 @@
-import { FileDown, FilePlus2, FileUp, LayoutTemplate, Redo2, Undo2 } from 'lucide-react';
+import { Eye, EyeOff, FileDown, FilePlus2, FileUp, LayoutTemplate, Redo2, Undo2 } from 'lucide-react';
 import type { Bundle } from '../domain/bundle';
 import { useEditor } from '../state/EditorContext';
 import { BundleButton } from './BundleButton';
@@ -25,6 +25,9 @@ interface Props {
 
 export function Header({ bundle, errorCount, onBundleText, onPickForm, onNew, onImport, onExport }: Props) {
   const { state, dispatch } = useEditor();
+  const hiddenCount = state.present
+    ? state.present.tabs.reduce((n, t) => n + (t.visible ? 0 : 1) + t.columns.reduce((m, c) => m + c.sections.reduce((k, s) => k + (s.visible ? 0 : 1) + s.cells.filter((x) => !x.visible).length, 0), 0), 0)
+    : 0;
   const langs = BASE_LANGS.some(([n]) => n === state.lcid) ? BASE_LANGS : [...BASE_LANGS, [state.lcid, `Idioma ${state.lcid}`] as [number, string]];
 
   return (
@@ -61,6 +64,15 @@ export function Header({ bundle, errorCount, onBundleText, onPickForm, onNew, on
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        {state.present && (
+          <button
+            className="btn btn-ghost"
+            onClick={() => dispatch({ type: 'setShowHidden', value: !state.showHidden })}
+            title={state.showHidden ? 'Ocultar del lienzo los elementos ocultos (solo vista; el XML no cambia)' : 'Mostrar los elementos ocultos en el lienzo'}
+          >
+            {state.showHidden ? <Eye size={16} /> : <EyeOff size={16} />} Ocultos{hiddenCount ? ` (${hiddenCount})` : ''}
+          </button>
+        )}
         {state.dirty && <span className="text-xs text-amber-600">● sin exportar</span>}
         <select className="input w-40" value={state.lcid} onChange={(e) => dispatch({ type: 'setLcid', lcid: Number(e.target.value) })} aria-label="Idioma de etiquetas">
           {langs.map(([n, l]) => <option key={n} value={n}>{l}</option>)}
