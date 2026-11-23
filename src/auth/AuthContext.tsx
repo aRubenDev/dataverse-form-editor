@@ -4,6 +4,7 @@ import {
   createMsal,
   loadConfig,
   normalizeOrgUrl,
+  rememberOrg,
   saveConfig,
   scopesFor,
   validateConfig,
@@ -78,7 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       saveConfig(clean);
       setConfig(clean);
       const pca = await createMsal(clean);
-      const res = await pca.loginPopup({ scopes: scopesFor(orgUrl) });
+      const res = await pca.loginPopup({ scopes: scopesFor(orgUrl), loginHint: cfg.loginHint, prompt: cfg.prompt });
+      rememberOrg(orgUrl, res.account.username);
       pca.setActiveAccount(res.account);
       pcaRef.current = pca;
       orgRef.current = orgUrl;

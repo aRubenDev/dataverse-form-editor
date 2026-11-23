@@ -19,13 +19,13 @@ XRM Toolbox usa un Client ID propio con redirect nativo; en un navegador **no se
 1. Entra ID → *App registrations* → *New registration* (cuentas de cualquier directorio organizativo).
 2. *Authentication* → *Add a platform* → **Single-page application**. Redirect URI: `http://localhost:5173/redirect.html` (añade también la de producción si lo despliegas).
 3. *API permissions* → *Dataverse* → *Delegated* → `user_impersonation`.
-4. Copia el *Application (client) ID* a `.env` o a la pantalla de login.
+4. Copia el *Application (client) ID* a `.env` (`VITE_AZURE_CLIENT_ID`, así nadie tiene que escribirlo) o a la sección "Aplicación de Azure" de la pantalla de login (se guarda en el navegador).
 
 El usuario necesita permiso de lectura sobre metadatos y `systemform` en el entorno (p. ej. rol *System Customizer*).
 
 ## Flujo de trabajo
 
-1. **Conectar** (URL del entorno + Client ID) → elige entidad y formulario.
+1. **Conectar**: escribe solo la URL del entorno (o pega una connection string `AuthType=OAuth;Url=…;AppId=…;Username=…`) → login de Microsoft → elige entidad y formulario. El Client ID se pide una vez y queda guardado; los entornos usados se recuerdan.
 2. Edita: arrastra campos desde la paleta, reordena celdas/secciones, cambia columnas, etiquetas, solo lectura…
 3. **Exportar XML** → copia o descarga → pégalo en el XML Editor de XRM Toolbox → publica desde allí.
 
@@ -44,6 +44,7 @@ El editor solo modela pestañas, secciones y campos. Todo lo demás se guarda co
 - **Borrar un campo** referenciado en `events`/`header`/`footer` pide confirmación (esas referencias no se tocan).
 - **Validación**: nombres únicos y válidos, ids de control únicos, campos duplicados, obligatorios ausentes (necesita metadatos). Los errores bloquean la exportación.
 - **Sesión caducada**: el editor no se descarta; hay autoguardado de borrador en `localStorage` y banner para reautenticar.
+- **Connection strings**: se leen `Url`, `AppId`/`ClientId`, `TenantId`, `Username` (preselecciona cuenta) y `LoginPrompt=Always`. `RedirectUri` se ignora y se rechazan las cadenas con `ClientSecret`/contraseña/certificado (un secreto en un SPA queda expuesto).
 - **Nubes soberanas** (GCC High, China): la authority está fija en `login.microsoftonline.com`.
 - No publica ni guarda en el entorno: esa parte queda en el XML Editor de XRM Toolbox.
 

@@ -5,12 +5,44 @@ import {
   type Configuration,
 } from '@azure/msal-browser';
 
+import { normalizeOrgUrl } from './orgUrl';
+
 export interface AuthConfig {
   clientId: string;
   /** 'organizations', 'common' o GUID de tenant */
   tenant: string;
   /** https://org12345.crm4.dynamics.com (sin barra final) */
   orgUrl: string;
+  /** Solo en memoria (no se persiste): cuenta a preseleccionar, viene de Username= */
+  loginHint?: string;
+  /** Solo en memoria: LoginPrompt=Always */
+  prompt?: 'select_account';
+}
+
+export interface RecentOrg {
+  orgUrl: string;
+  account?: string;
+}
+
+const RECENTS_KEY = 'dfd.recentOrgs';
+
+export function loadRecents(): RecentOrg[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(RECENTS_KEY) ?? '[]') as RecentOrg[];
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Entornos usados recientemente (más reciente primero, máx. 8), como la lista de conexiones de XRM Toolbox. */
+export function rememberOrg(orgUrl: string, account?: string): void {
+  try {
+    const next = [{ orgUrl, account }, ...loadRecents().filter((r) => r.orgUrl !== orgUrl)].slice(0, 8);
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
+  } catch {
+    /* no crítico */
+  }
 }
 
 const STORAGE_KEY = 'dfd.authConfig';
@@ -33,16 +65,11 @@ export function loadConfig(): AuthConfig {
 /** Solo se guardan datos no secretos (ids y URL). Los tokens los gestiona MSAL en sessionStorage. */
 export function saveConfig(cfg: AuthConfig): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    const { clientId, tenant, orgUrl } = cfg;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ clientId, tenant, orgUrl }));
   } catch {
     /* almacenamiento no disponible: no es crítico */
   }
-}
-
-export function normalizeOrgUrl(input: string): string {
-  const url = new URL(input.trim());
-  if (url.protocol !== 'https:') throw new Error('La URL del entorno debe empezar por https://');
-  return url.origin;
 }
 
 export function validateConfig(cfg: AuthConfig): string | null {
@@ -73,5 +100,5 @@ export async function createMsal(cfg: AuthConfig): Promise<PublicClientApplicati
   return pca;
 }
 
-export { InteractionRequiredAuthError };
+export { InteractionRequiredAuthError, normalizeOrgUrl };
 export type { AccountInfo, PublicClientApplication };
